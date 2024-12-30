@@ -9,3 +9,7 @@ select = ['I', 'F', 'E', 'W', 'PL', 'PT']
 [tool.ruff.format]
 preview = true
 quote-style = 'single'
+
+[tool.taskipy.tasks]
+build = 'docker build -t litestar-test .'
+run = 'docker run -p 8000:80 -v "$(pwd):/app" litestar-test'
