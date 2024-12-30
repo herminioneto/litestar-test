@@ -3,6 +3,7 @@ from collections.abc import AsyncGenerator
 from advanced_alchemy.extensions.litestar.plugins.init.config.asyncio import autocommit_before_send_handler
 from litestar import Litestar, get, post
 from litestar.contrib.sqlalchemy.plugins import SQLAlchemyAsyncConfig, SQLAlchemyPlugin
+from litestar.plugins.sqlalchemy import SQLAlchemyDTO, SQLAlchemyDTOConfig
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -20,14 +21,19 @@ class Todo(Base):
     user_id: Mapped[int]
 
 
+class WriteTodoDTO(SQLAlchemyDTO[Todo]):
+    config = SQLAlchemyDTOConfig(exclude={'id'})
+
+
 async def provide_transaction(db_session: AsyncSession) -> AsyncGenerator[AsyncSession, None]:
     async with db_session.begin():
         yield db_session
 
 
-@post('/todo')
+@post('/todo', dto=WriteTodoDTO)
 async def create_todo(data: Todo, transaction: AsyncSession) -> Todo:
     transaction.add(data)
+    await transaction.flush()
     return data
 
 
