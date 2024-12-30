@@ -3,8 +3,11 @@ from collections.abc import AsyncGenerator
 from advanced_alchemy.extensions.litestar.plugins.init.config.asyncio import autocommit_before_send_handler
 from litestar import Litestar, get, post
 from litestar.contrib.sqlalchemy.plugins import SQLAlchemyAsyncConfig, SQLAlchemyPlugin
+from litestar.exceptions import ClientException
 from litestar.plugins.sqlalchemy import SQLAlchemyDTO, SQLAlchemyDTOConfig
+from litestar.status_codes import HTTP_409_CONFLICT
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -26,8 +29,14 @@ class WriteTodoDTO(SQLAlchemyDTO[Todo]):
 
 
 async def provide_transaction(db_session: AsyncSession) -> AsyncGenerator[AsyncSession, None]:
-    async with db_session.begin():
-        yield db_session
+    try:
+        async with db_session.begin():
+            yield db_session
+    except IntegrityError as exc:
+        raise ClientException(
+            status_code=HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
 
 
 @post('/todo', dto=WriteTodoDTO)
